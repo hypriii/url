@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener with Rate Limiting</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        input {
+            margin: 10px;
+            padding: 10px;
+            width: 80%;
+            max-width: 500px;
+        }
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .output {
+            margin-top: 20px;
+        }
+        a {
+            color: blue;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple URL Shortener</h1>
+    <input type="text" id="urlInput" placeholder="Enter a URL to shorten" />
+    <button onclick="shortenURL()">Shorten</button>
+    <div class="output" id="output"></div>
+
+    <script>
+        const RATE_LIMIT_WINDOW = 60000; // Time window in milliseconds (1 minute)
+        const RATE_LIMIT_COUNT = 5; // Maximum number of URLs per window
+
+        const shortenURL = () => {
+            const urlInput = document.getElementById('urlInput').value.trim();
+            const outputDiv = document.getElementById('output');
+
+            if (!urlInput) {
+                outputDiv.innerHTML = "<p>Please enter a valid URL.</p>";
+                return;
+            }
+
+            // Get the rate limit data from localStorage
+            const rateLimitData = JSON.parse(localStorage.getItem('rateLimit')) || { timestamps: [] };
+            const currentTime = Date.now();
+
+            // Remove timestamps outside the current rate limit window
+            rateLimitData.timestamps = rateLimitData.timestamps.filter(
+                timestamp => currentTime - timestamp < RATE_LIMIT_WINDOW
+            );
+
+            if (rateLimitData.timestamps.length >= RATE_LIMIT_COUNT) {
+                outputDiv.innerHTML = `
+                    <p>You have reached the rate limit. Please wait before trying again.</p>
+                `;
+                return;
+            }
+
+            // Generate a random short code
+            const shortCode = Math.random().toString(36).substring(2, 8);
+
+            // Store the mapping in localStorage
+            localStorage.setItem(shortCode, urlInput);
+
+            // Update the rate limit data
+            rateLimitData.timestamps.push(currentTime);
+            localStorage.setItem('rateLimit', JSON.stringify(rateLimitData));
+
+            // Display the shortened URL
+            const shortURL = `${window.location.origin}?s=${shortCode}`;
+            outputDiv.innerHTML = `
+                <p>Shortened URL: <a href="${shortURL}" target="_blank">${shortURL}</a></p>
+            `;
+        };
+
+        // Redirect if a short code is present in the URL
+        const params = new URLSearchParams(window.location.search);
+        const shortCode = params.get('s');
+        if (shortCode) {
+            const originalURL = localStorage.getItem(shortCode);
+            if (originalURL) {
+                window.location.href = originalURL;
+            } else {
+                document.body.innerHTML = "<h1>404: URL not found</h1>";
+            }
+        }
+    </script>
+</body>
+</html>
