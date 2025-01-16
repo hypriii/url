@@ -3,95 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>URL Shortener with Rate Limiting</title>
+    <!-- HTML Meta Tags -->
+<title>URL Shortener by hyprix</title>
+<meta name="description" content="why did i do this, thanks to natalie for hosting, discord: https://hypriii.github.io/status">
+
+<!-- Facebook Meta Tags -->
+<meta property="og:url" content="https://natta.homes/url">
+<meta property="og:type" content="website">
+<meta property="og:title" content="URL Shortener by hyprix">
+<meta property="og:description" content="why did i do this, thanks to natalie for hosting, discord: https://hypriii.github.io/status">
+<meta property="og:image" content="https://opengraph.b-cdn.net/production/images/62265356-a34e-431e-8387-cb71617bee50.png?token=2E-Iju7ZBHftlKQMlmJl8g4sCUxUyOIBuUjwTONdbqc&height=128&width=128&expires=33273019039">
+
+<!-- Twitter Meta Tags -->
+<meta name="twitter:card" content="summary_large_image">
+<meta property="twitter:domain" content="natta.homes">
+<meta property="twitter:url" content="https://natta.homes/url">
+<meta name="twitter:title" content="URL Shortener by hyprix">
+<meta name="twitter:description" content="why did i do this, thanks to natalie for hosting, discord: https://hypriii.github.io/status">
+<meta name="twitter:image" content="https://opengraph.b-cdn.net/production/images/62265356-a34e-431e-8387-cb71617bee50.png?token=2E-Iju7ZBHftlKQMlmJl8g4sCUxUyOIBuUjwTONdbqc&height=128&width=128&expires=33273019039">
+
+<!-- Meta Tags Generated via https://www.opengraph.xyz -->
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            margin: 0;
-            padding: 20px;
+            margin: 20px;
         }
-        input {
+        input, button {
             margin: 10px;
             padding: 10px;
             width: 80%;
             max-width: 500px;
         }
         button {
-            padding: 10px 20px;
             cursor: pointer;
         }
         .output {
             margin-top: 20px;
         }
-        a {
-            color: blue;
-            text-decoration: underline;
-        }
     </style>
 </head>
 <body>
-    <h1>Simple URL Shortener</h1>
-    <input type="text" id="urlInput" placeholder="Enter a URL to shorten" />
+    <h1>Custom URL Shortener</h1>
+    <input type="url" id="url" placeholder="Enter URL (e.g., https://example.com)" required>
+    <input type="text" id="alias" placeholder="Enter custom alias (optional)">
     <button onclick="shortenURL()">Shorten</button>
     <div class="output" id="output"></div>
 
     <script>
-        const RATE_LIMIT_WINDOW = 60000; // Time window in milliseconds (1 minute)
-        const RATE_LIMIT_COUNT = 5; // Maximum number of URLs per window
+        function shortenURL() {
+            const url = document.getElementById('url').value.trim();
+            const alias = document.getElementById('alias').value.trim();
+            const output = document.getElementById('output');
 
-        const shortenURL = () => {
-            const urlInput = document.getElementById('urlInput').value.trim();
-            const outputDiv = document.getElementById('output');
-
-            if (!urlInput) {
-                outputDiv.innerHTML = "<p>Please enter a valid URL.</p>";
+            if (!url) {
+                output.innerHTML = "<p style='color: red;'>Please enter a valid URL.</p>";
                 return;
             }
 
-            // Get the rate limit data from localStorage
-            const rateLimitData = JSON.parse(localStorage.getItem('rateLimit')) || { timestamps: [] };
-            const currentTime = Date.now();
-
-            // Remove timestamps outside the current rate limit window
-            rateLimitData.timestamps = rateLimitData.timestamps.filter(
-                timestamp => currentTime - timestamp < RATE_LIMIT_WINDOW
-            );
-
-            if (rateLimitData.timestamps.length >= RATE_LIMIT_COUNT) {
-                outputDiv.innerHTML = `
-                    <p>You have reached the rate limit. Please wait before trying again.</p>
-                `;
-                return;
-            }
-
-            // Generate a random short code
-            const shortCode = Math.random().toString(36).substring(2, 8);
-
-            // Store the mapping in localStorage
-            localStorage.setItem(shortCode, urlInput);
-
-            // Update the rate limit data
-            rateLimitData.timestamps.push(currentTime);
-            localStorage.setItem('rateLimit', JSON.stringify(rateLimitData));
-
-            // Display the shortened URL
-            const shortURL = `${window.location.origin}?s=${shortCode}`;
-            outputDiv.innerHTML = `
-                <p>Shortened URL: <a href="${shortURL}" target="_blank">${shortURL}</a></p>
-            `;
-        };
-
-        // Redirect if a short code is present in the URL
-        const params = new URLSearchParams(window.location.search);
-        const shortCode = params.get('s');
-        if (shortCode) {
-            const originalURL = localStorage.getItem(shortCode);
-            if (originalURL) {
-                window.location.href = originalURL;
-            } else {
-                document.body.innerHTML = "<h1>404: URL not found</h1>";
-            }
+            // Send data to PHP backend
+            fetch('shorten.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url, alias })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        output.innerHTML = `<p style='color: red;'>${data.error}</p>`;
+                    } else {
+                        output.innerHTML = `
+                            <p>Shortened URL: <a href="${data.short_url}" target="_blank">${data.short_url}</a></p>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    output.innerHTML = `<p style='color: red;'>An error occurred. Please try again.</p>`;
+                });
         }
     </script>
 </body>
